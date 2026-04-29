@@ -1,21 +1,59 @@
-import joblib
 import os
-import pandas as pd
+import pickle
+import numpy as np
 
-MODEL_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../ml/model.pkl")
+MODEL_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "../ml/saved_models/bug_risk_model.pkl"
 )
 
-model = joblib.load(MODEL_PATH)
+_model = None  # Loaded once on first call, not at import time
 
-def predict_bug_risk(features):
+
+def _load_model():
+    global _model
+    if _model is None:
+        path = os.path.abspath(MODEL_PATH)
+        if not os.path.exists(path):
+            raise FileNotFoundError(
+                f"Model file not found at: {path}\n"
+                "Run: python ml/training/train_model.py"
+            )
+        with open(path, "rb") as f:
+            _model = pickle.load(f)
+    return _model
+
+
+def predict_bug_risk(features: dict) -> float:
+    """
+    Takes features dict from feature_extractor.py
+    Returns bug risk probability between 0.0 and 1.0
+    """
     try:
-        df = pd.DataFrame([features])
+        model = _load_model()
 
-        proba = model.predict_proba(df)[0][1]  # probability of class 1
+        # Feature order MUST match train_model.py exactly
+        vector = np.array([[
+            features["num_lines"],
+            features["num_chars"],
+            features["num_loops"],
+            features["num_conditions"],
+            features["num_functions"],
+            features["num_classes"],
+            features["avg_line_length"],
+            features["nesting_depth"],
+            features["num_try_except"],
+            features["num_returns"],
+            features["code_density"],
+        ]])
 
-        return float(round(proba, 2))
+        prob = model.predict_proba(vector)[0][1]
+        return round(float(prob), 2)
+
+    except FileNotFoundError as e:
+        print(f"MODEL NOT FOUND: {e}")
+        return 0.5  # Neutral fallback
 
     except Exception as e:
-        print("ML ERROR:", str(e))
+        print(f"ML ERROR: {e}")
         return 0.5

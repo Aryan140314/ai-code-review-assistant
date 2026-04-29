@@ -1,31 +1,91 @@
-import pandas as pd
+"""
+Run this ONCE to generate the ML model:
+    python ml/training/train_model.py
+
+Saves model to: backend/ml/saved_models/bug_risk_model.pkl
+
+Features used (must match feature_extractor.py exactly):
+    num_lines, num_chars, num_loops, num_conditions, num_functions,
+    num_classes, avg_line_length, nesting_depth, num_try_except,
+    num_returns, code_density
+"""
+
+import os
+import pickle
+import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-import joblib
+from sklearn.metrics import accuracy_score, classification_report
 
-# Load dataset
-df = pd.read_csv("dataset.csv")
+np.random.seed(42)
+N = 400  # samples per class
 
-X = df.drop("label", axis=1)
-y = df["label"]
+# -----------------------------------------------------------------------
+# Low risk code: small, simple, not deeply nested
+# -----------------------------------------------------------------------
+low = np.column_stack([
+    np.random.randint(5,   50,  N),      # num_lines
+    np.random.randint(10,  500, N),      # num_chars
+    np.random.randint(0,   3,   N),      # num_loops
+    np.random.randint(0,   3,   N),      # num_conditions
+    np.random.randint(1,   5,   N),      # num_functions
+    np.random.randint(0,   2,   N),      # num_classes
+    np.random.uniform(15,  50,  N),      # avg_line_length
+    np.random.randint(1,   4,   N),      # nesting_depth
+    np.random.randint(0,   2,   N),      # num_try_except
+    np.random.randint(1,   5,   N),      # num_returns
+    np.random.uniform(0.7, 1.0, N),     # code_density
+])
 
-# Train/test split
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
+# -----------------------------------------------------------------------
+# High risk code: large, complex, deeply nested, many loops
+# -----------------------------------------------------------------------
+high = np.column_stack([
+    np.random.randint(100, 600, N),      # num_lines
+    np.random.randint(800, 8000, N),     # num_chars
+    np.random.randint(6,  20,   N),      # num_loops
+    np.random.randint(8,  30,   N),      # num_conditions
+    np.random.randint(10, 40,   N),      # num_functions
+    np.random.randint(3,  10,   N),      # num_classes
+    np.random.uniform(60, 130,  N),      # avg_line_length
+    np.random.randint(8,  25,   N),      # nesting_depth
+    np.random.randint(0,  3,    N),      # num_try_except
+    np.random.randint(8,  40,   N),      # num_returns
+    np.random.uniform(0.3, 0.65, N),    # code_density
+])
 
-# Train
-model = RandomForestClassifier(n_estimators=200, random_state=42)
-model.fit(X_train, y_train)
+X = np.vstack([low, high])
+y = np.array([0] * N + [1] * N)
+
+# Shuffle
+idx = np.random.permutation(len(X))
+X, y = X[idx], y[idx]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Pipeline: normalize + classify
+pipeline = Pipeline([
+    ("scaler", MinMaxScaler()),
+    ("clf",    RandomForestClassifier(n_estimators=150, random_state=42)),
+])
+
+pipeline.fit(X_train, y_train)
 
 # Evaluate
-y_pred = model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-
-print("Model Accuracy:", accuracy)
+y_pred = pipeline.predict(X_test)
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
 
 # Save
-joblib.dump(model, "model.pkl")
+save_path = os.path.join(
+    os.path.dirname(__file__),
+    "../../backend/ml/saved_models/bug_risk_model.pkl"
+)
+os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-print("MODEL TRAINED & SAVED")
+with open(save_path, "wb") as f:
+    pickle.dump(pipeline, f)
+
+print(f"\nModel saved → {os.path.abspath(save_path)}")

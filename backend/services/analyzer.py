@@ -1,131 +1,149 @@
 import subprocess
 import json
-
-from services.feature_extractor import extract_features
-from services.ml_model import predict_bug_risk
 import sys
 import ast
 
-            
-def detect_nested_loops(code: str):
-    return code.count("for") + code.count("while") >= 2
+from services.feature_extractor import extract_features
+from services.ml_model import predict_bug_risk
+from services.suggestion_engine import generate_suggestions
 
-def detect_bad_function_name(code: str):
+
+# -----------------------------------------------------------------------
+# Custom rule checkers
+# -----------------------------------------------------------------------
+
+def detect_nested_loops(code: str) -> bool:
+    """
+    Uses AST to detect actual nested loops — not string counting.
+    String counting was buggy: 'for' matches 'format', 'before', etc.
+    """
+    try:
+        tree = ast.parse(code)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.For, ast.While)):
+                for child in ast.walk(node):
+                    # Skip the node itself
+                    if child is node:
+                        continue
+                    if isinstance(child, (ast.For, ast.While)):
+                        return True
+    except SyntaxError:
+        pass
+    return False
+
+
+def detect_bad_function_names(code: str) -> list:
+    """Returns list of function names that are too short (<=2 chars)."""
     bad = []
     try:
         tree = ast.parse(code)
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
-                name = node.name
-                if len(name) <= 2:
-                    bad.append(name)
-        return bad
-    except:
-        return []
+            if isinstance(node, ast.FunctionDef) and len(node.name) <= 2:
+                bad.append(node.name)
+    except SyntaxError:
+        pass
+    return bad
 
-def detect_missing_docstring(code: str):
+
+def detect_missing_docstring(code: str) -> bool:
     return '"""' not in code and "'''" not in code
 
-# 🔍 Run pylint safely using stdin (no file issues)
-def run_pylint(code: str):
+
+# -----------------------------------------------------------------------
+# Pylint runner — uses stdin, no temp file needed
+# -----------------------------------------------------------------------
+
+def run_pylint(code: str) -> list:
     try:
         result = subprocess.run(
             [
-                sys.executable,
-                "-m",
-                "pylint",
-                "--from-stdin",
-                "temp.py",
-                "-f",
-                "json",
-                "--enable=all",
-                "--disable=C0114,C0115,C0116"
+                sys.executable, "-m", "pylint",
+                "--from-stdin", "submitted_code.py",
+                "--output-format=json",
+                "--disable=C0114,C0115,C0116",  # ignore missing module/class/function docstrings
+                "--score=no",
             ],
             input=code,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            timeout=30,
         )
 
-        output = result.stdout.strip()
-
-        # fallback to stderr if needed
-        if not output:
-            output = result.stderr.strip()
-
-        if not output:
+        raw = result.stdout.strip()
+        if not raw:
             return []
 
-        try:
-            return json.loads(output)
-        except json.JSONDecodeError:
-            print("⚠️ PYLINT RAW OUTPUT:\n", output)
-            return []
+        return json.loads(raw)
 
+    except subprocess.TimeoutExpired:
+        print("PYLINT: timed out")
+        return []
+    except json.JSONDecodeError:
+        print("PYLINT: could not parse JSON output")
+        return []
     except Exception as e:
-        print("PYLINT ERROR:", str(e))
+        print(f"PYLINT ERROR: {e}")
         return []
 
 
-# 🔍 Main analysis function
-def analyze_code(code: str):
+# -----------------------------------------------------------------------
+# Main analysis function
+# -----------------------------------------------------------------------
+
+def analyze_code(code: str) -> dict:
     # 1. Extract features
     features = extract_features(code)
 
-    if features is None:
-        return {
-            "quality_score": 0,
-            "bug_risk": 0.5,
-            "issues": ["Invalid Python code"]
-        }
-
-    # 2. Run pylint
-    pylint_output = run_pylint(code)
-
+    # 2. Custom rule checks
     issues = []
-    severity_score = 0
-    
-    # ✅ CUSTOM RULE 1: detect bad function names
-    bad_funcs = detect_bad_function_name(code)
-    if bad_funcs:
-        issues.append(f"Poor function naming: {', '.join(bad_funcs)}")
+    severity_score = 0.0
+
+    bad_names = detect_bad_function_names(code)
+    if bad_names:
+        issues.append(f"Poor function naming: {', '.join(bad_names)}")
         severity_score += 2.5
 
-    # ✅ CUSTOM RULE 2: detect nested loops
     if detect_nested_loops(code):
         issues.append("High complexity: nested loops detected")
-        severity_score += 4
+        severity_score += 4.0
 
-    # ✅ CUSTOM RULE 3: detect missing docstrings
     if detect_missing_docstring(code):
         issues.append("Missing documentation (docstring)")
-        severity_score += 2
+        severity_score += 2.0
 
-    for issue in pylint_output:
-        message = issue.get("message", "")
-        issue_type = issue.get("type", "")
+    # 3. Pylint checks
+    pylint_results = run_pylint(code)
+    for item in pylint_results:
+        message   = item.get("message", "").strip()
+        item_type = item.get("type", "")
 
-        issues.append(message)
+        if message:
+            issues.append(message)
 
-        # 🎯 Weighted scoring
-        if issue_type == "error":
-            severity_score += 4
-        elif issue_type == "warning":
-            severity_score += 3
-        elif issue_type == "refactor":
-            severity_score += 2
+        if item_type == "error":
+            severity_score += 4.0
+        elif item_type == "warning":
+            severity_score += 3.0
+        elif item_type == "refactor":
+            severity_score += 2.0
         else:
-            severity_score += 1
+            severity_score += 1.0
 
-    # 3. Compute quality score
-    score = max(0, 10 - severity_score)
-    quality_score = round(score / 10, 2)
+    # 4. Quality score — clamped to [0, 1]
+    raw_score    = max(0.0, 10.0 - severity_score)
+    quality_score = round(min(raw_score, 10.0) / 10.0, 2)
 
-    # 4. ML prediction
+    # 5. ML bug risk prediction
     bug_risk = predict_bug_risk(features)
+
+    # 6. Suggestions
+    suggestions = generate_suggestions(issues, features)
 
     return {
         "quality_score": quality_score,
-        "bug_risk": bug_risk,
-        "issues": issues[:10]  # limit output
+        "bug_risk":      bug_risk,
+        "issues":        issues[:10],
+        "suggestions":   suggestions,
+        "features":      features,
     }

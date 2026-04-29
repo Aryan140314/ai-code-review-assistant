@@ -9,3 +9,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local data and large files
+backend/codereview.db
+ml/CodeXGLUE-main.zip
