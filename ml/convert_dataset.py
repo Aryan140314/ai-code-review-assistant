@@ -2,25 +2,25 @@ import json
 import pandas as pd
 from pathlib import Path
 
-# Define the root path to the dataset
+# Root path for the dataset files
 DATASET_DIR = Path(r"E:\ai-code-review\ml\CodeXGLUE-main\CodeXGLUE-main\Code-Code\Defect-detection\dataset")
 
 def extract_features(code: str):
     """
-    Mock feature extraction function. 
-    Replace this with your actual logic (e.g., AST parsing, tokenization, line count).
+    A simple placeholder feature extraction function.
+    Replace this with your real feature extraction logic.
     """
-    # Example: returning the number of lines as a feature
+    # For now, just count how many lines are in the snippet
     return len(code.strip().split('\n'))
 
 def load_json_data(file_path: Path):
     """Helper to load either a JSON array or JSONL file safely."""
     with open(file_path, 'r', encoding='utf-8') as f:
         try:
-            # Try parsing as a single JSON Array
+            # First try to load the file as a JSON array
             return json.load(f)
         except json.JSONDecodeError:
-            # Fallback to parsing as JSON Lines (JSONL)
+            # If that fails, parse it line by line as JSONL
             f.seek(0)
             return [json.loads(line.strip()) for line in f if line.strip()]
 
@@ -49,7 +49,7 @@ def build_dataset():
                 "label": label
             })
             
-            # Debug Print for the first 2 items
+            # Print the first two examples for debugging
             if idx < 2:
                 print(f"\n--- Debug: Method 1 (Item {idx}) ---")
                 print(f"Label: {label}")
@@ -84,7 +84,7 @@ def build_dataset():
                     "label": label
                 })
                 
-                # Debug Print for the first 2 items
+                # Print the first two examples for debugging
                 if idx < 2:
                     print(f"\n--- Debug: Method 2 (Mapped ID {func_id}) ---")
                     print(f"Label: {label}")
@@ -97,9 +97,7 @@ def build_dataset():
         print(f"Please ensure {DATASET_DIR} contains either 'train.jsonl' OR ('function.json' and 'train.txt').")
         return
 
-    # ---------------------------------------------------------
-    # Save the Final Dataset
-    # ---------------------------------------------------------
+    # Save the extracted dataset to a CSV file
     if extracted_data:
         df = pd.DataFrame(extracted_data)
         output_csv = DATASET_DIR / "dataset.csv"

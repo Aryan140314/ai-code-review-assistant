@@ -8,9 +8,7 @@ from services.ml_model import predict_bug_risk
 from services.suggestion_engine import generate_suggestions
 
 
-# -----------------------------------------------------------------------
-# Custom rule checkers
-# -----------------------------------------------------------------------
+# Custom rule checks
 
 def detect_nested_loops(code: str) -> bool:
     """
@@ -49,9 +47,7 @@ def detect_missing_docstring(code: str) -> bool:
     return '"""' not in code and "'''" not in code
 
 
-# -----------------------------------------------------------------------
-# Pylint runner — uses stdin, no temp file needed
-# -----------------------------------------------------------------------
+# Run pylint on the submitted code without creating a temporary file.
 
 def run_pylint(code: str) -> list:
     try:
@@ -60,7 +56,7 @@ def run_pylint(code: str) -> list:
                 sys.executable, "-m", "pylint",
                 "--from-stdin", "submitted_code.py",
                 "--output-format=json",
-                "--disable=C0114,C0115,C0116",  # ignore missing module/class/function docstrings
+                "--disable=C0114,C0115,C0116",  # skip missing-docstring warnings for this analysis
                 "--score=no",
             ],
             input=code,
@@ -87,15 +83,13 @@ def run_pylint(code: str) -> list:
         return []
 
 
-# -----------------------------------------------------------------------
-# Main analysis function
-# -----------------------------------------------------------------------
+# Overall analysis flow for a single code submission
 
 def analyze_code(code: str) -> dict:
-    # 1. Extract features
+    # 1. Pull numeric code metrics from the submitted source
     features = extract_features(code)
 
-    # 2. Custom rule checks
+    # 2. Apply simple custom rule checks
     issues = []
     severity_score = 0.0
 
@@ -130,7 +124,7 @@ def analyze_code(code: str) -> dict:
         else:
             severity_score += 1.0
 
-    # 4. Quality score — clamped to [0, 1]
+    # 4. Compute a simple quality score from the issue severity
     raw_score    = max(0.0, 10.0 - severity_score)
     quality_score = round(min(raw_score, 10.0) / 10.0, 2)
 

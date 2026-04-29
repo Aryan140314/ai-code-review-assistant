@@ -8,7 +8,7 @@ from services.analyzer import analyze_code
 
 router = APIRouter()
 
-PIPE = " || "  # separator for storing lists in DB
+PIPE = " || "  # serialized list separator for the database text fields
 
 
 class CodeInput(BaseModel):
@@ -26,7 +26,7 @@ def analyze(data: CodeInput, db: Session = Depends(get_db)):
 
     result = analyze_code(code)
 
-    # Save to DB
+    # Store the analysis result in the local history database
     record = Analysis(
         code          = code,
         quality_score = result["quality_score"],
@@ -54,7 +54,7 @@ def get_history(limit: int = 20, db: Session = Depends(get_db)):
     records = (
         db.query(Analysis)
         .order_by(Analysis.created_at.desc())
-        .limit(min(limit, 100))  # cap at 100
+        .limit(min(limit, 100))  # never return more than 100 entries
         .all()
     )
     return [

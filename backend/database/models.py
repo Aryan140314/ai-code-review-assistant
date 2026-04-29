@@ -12,6 +12,6 @@ class Analysis(Base):
     code          = Column(Text, nullable=False)
     quality_score = Column(Float, nullable=False)
     bug_risk      = Column(Float, nullable=False)
-    issues        = Column(Text, nullable=True)       # pipe-separated
-    suggestions   = Column(Text, nullable=True)       # pipe-separated
+    issues        = Column(Text, nullable=True)       # stored as a single text string with pipe separators
+    suggestions   = Column(Text, nullable=True)       # stored as a single text string with pipe separators
     created_at    = Column(DateTime(timezone=True), server_default=func.now())

@@ -7,7 +7,7 @@ MODEL_PATH = os.path.join(
     "../ml/saved_models/bug_risk_model.pkl"
 )
 
-_model = None  # Loaded once on first call, not at import time
+_model = None  # load the saved model lazily when it's needed
 
 
 def _load_model():
@@ -17,7 +17,7 @@ def _load_model():
         if not os.path.exists(path):
             raise FileNotFoundError(
                 f"Model file not found at: {path}\n"
-                "Run: python ml/training/train_model.py"
+                "Run: python ml/train_model.py"
             )
         with open(path, "rb") as f:
             _model = pickle.load(f)
@@ -32,7 +32,7 @@ def predict_bug_risk(features: dict) -> float:
     try:
         model = _load_model()
 
-        # Feature order MUST match train_model.py exactly
+        # The feature order here must match the order used during training.
         vector = np.array([[
             features["num_lines"],
             features["num_chars"],
@@ -52,7 +52,7 @@ def predict_bug_risk(features: dict) -> float:
 
     except FileNotFoundError as e:
         print(f"MODEL NOT FOUND: {e}")
-        return 0.5  # Neutral fallback
+        return 0.5  # return a neutral probability when the model is missing
 
     except Exception as e:
         print(f"ML ERROR: {e}")

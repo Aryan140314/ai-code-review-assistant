@@ -10,11 +10,11 @@ def extract_features(code: str) -> dict | None:
     non_empty = [l for l in lines if l.strip()]
     num_lines = len(lines)
 
-    # --- AST parsing ---
+    # Parse the code into an AST so we can count meaningful syntax features.
     try:
         tree = ast.parse(code)
     except SyntaxError:
-        # Still return basic features even on syntax error
+        # If parsing fails, return a fallback feature set.
         return {
             "num_lines": num_lines,
             "num_chars": len(code),
@@ -36,7 +36,7 @@ def extract_features(code: str) -> dict | None:
     num_try_except = sum(1 for n in ast.walk(tree) if isinstance(n, ast.Try))
     num_returns    = sum(1 for n in ast.walk(tree) if isinstance(n, ast.Return))
 
-    # Estimate nesting depth by counting block-level nodes
+    # A rough estimate of nesting depth by counting blocks in the AST
     nesting_depth  = sum(
         1 for n in ast.walk(tree)
         if isinstance(n, (ast.For, ast.While, ast.If, ast.With, ast.FunctionDef, ast.ClassDef))

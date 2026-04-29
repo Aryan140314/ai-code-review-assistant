@@ -1,13 +1,13 @@
 """
-Run this ONCE to generate the ML model:
-    python ml/training/train_model.py
+Train a simple bug risk model and save it for use by the backend.
 
-Saves model to: backend/ml/saved_models/bug_risk_model.pkl
+Run:
+    python ml/train_model.py
 
-Features used (must match feature_extractor.py exactly):
-    num_lines, num_chars, num_loops, num_conditions, num_functions,
-    num_classes, avg_line_length, nesting_depth, num_try_except,
-    num_returns, code_density
+The trained model is saved to:
+    backend/ml/saved_models/bug_risk_model.pkl
+
+The model uses the same feature set expected by feature_extractor.py.
 """
 
 import os
@@ -22,9 +22,7 @@ from sklearn.metrics import accuracy_score, classification_report
 np.random.seed(42)
 N = 400  # samples per class
 
-# -----------------------------------------------------------------------
-# Low risk code: small, simple, not deeply nested
-# -----------------------------------------------------------------------
+# Low-risk examples are shorter and simpler, with less nesting and fewer loops.
 low = np.column_stack([
     np.random.randint(5,   50,  N),      # num_lines
     np.random.randint(10,  500, N),      # num_chars
@@ -39,9 +37,7 @@ low = np.column_stack([
     np.random.uniform(0.7, 1.0, N),     # code_density
 ])
 
-# -----------------------------------------------------------------------
-# High risk code: large, complex, deeply nested, many loops
-# -----------------------------------------------------------------------
+# High-risk examples are larger, more complex, and use deeper nesting.
 high = np.column_stack([
     np.random.randint(100, 600, N),      # num_lines
     np.random.randint(800, 8000, N),     # num_chars
@@ -65,7 +61,7 @@ X, y = X[idx], y[idx]
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Pipeline: normalize + classify
+# Build a pipeline that scales the data and trains a classifier
 pipeline = Pipeline([
     ("scaler", MinMaxScaler()),
     ("clf",    RandomForestClassifier(n_estimators=150, random_state=42)),
@@ -73,12 +69,12 @@ pipeline = Pipeline([
 
 pipeline.fit(X_train, y_train)
 
-# Evaluate
+# Print evaluation results for the trained model
 y_pred = pipeline.predict(X_test)
 print("Accuracy:", accuracy_score(y_test, y_pred))
 print(classification_report(y_test, y_pred))
 
-# Save
+# Save the trained model to disk
 save_path = os.path.join(
     os.path.dirname(__file__),
     "../../backend/ml/saved_models/bug_risk_model.pkl"

@@ -22,7 +22,7 @@ def generate_suggestions(issues: list, features: dict) -> list:
     if features.get("code_density", 1) < 0.5:
         suggestions.append("Too many blank lines — clean up unnecessary whitespace.")
 
-    # Issue-based suggestions
+    # Add suggestions based on the issues found in the analysis
     seen = set()
     for issue in issues:
         issue_lower = issue.lower()
@@ -39,4 +39,4 @@ def generate_suggestions(issues: list, features: dict) -> list:
             suggestions.append("Function is too large — split it into smaller focused functions.")
             seen.add("too-many")
 
-    return list(dict.fromkeys(suggestions))[:6]  # deduplicate, cap at 6
+    return list(dict.fromkeys(suggestions))[:6]  # remove duplicates and keep the list short
