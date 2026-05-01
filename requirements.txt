@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-pandas
+sqlalchemy
+numpy
 scikit-learn
-joblib
+pandas
 pylint
