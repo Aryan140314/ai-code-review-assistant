@@ -10,7 +10,7 @@ AI Code Review Assistant is a full-stack code review project with a FastAPI back
 - Predicts a bug risk score using a trained ML model
 - Stores analysis history in a local SQLite database
 - Exposes history retrieval and deletion endpoints
-- Includes a basic React + Vite frontend scaffold in `frontend/`
+- Includes a basic React + Vite frontend scaffold in  `frontend/`
 
 ## Project Structure
 
@@ -44,22 +44,22 @@ ai-code-review/
 └── requirements.txt
 ```
 
-- `backend/main.py` — FastAPI application entry point
-- `backend/routes/analyze.py` — analysis, history, and delete endpoints
-- `backend/services/analyzer.py` — analysis orchestration and scoring logic
-- `backend/services/feature_extractor.py` — code feature extraction
-- `backend/services/suggestion_engine.py` — user-facing improvement suggestions
-- `backend/services/ml_model.py` — loads ML model and predicts bug risk
-- `backend/database/db.py` — SQLite database session and engine setup
+- `backend/main.py` —  FastAPI application entry point
+- `backend/routes/analyze.py` —  analysis, history, and delete endpoints
+- `backend/services/analyzer.py` —  analysis orchestration and scoring logic
+- `backend/services/feature_extractor.py` —  code feature extraction
+- `backend/services/suggestion_engine.py` —  user-facing improvement suggestions
+- `backend/services/ml_model.py` —  loads ML model and predicts bug risk
+- `backend/database/db.py` —  SQLite database session and engine setup
 - `backend/database/models.py` — SQLAlchemy data model for analysis records
-- `ml/train_model.py` — trains the bug risk classifier and saves `ml/model.pkl`
-- `ml/convert_dataset.py` — dataset conversion utility using pandas
-- `frontend/` — React + Vite frontend scaffold
+- `ml/train_model.py` —  trains the bug risk classifier and saves `ml/model.pkl`
+- `ml/convert_dataset.py` —  dataset conversion utility using pandas
+- `frontend/` —  React + Vite frontend scaffold
 
 ## API Endpoints
-- `POST /analyze` — analyze Python source code
-- `GET /history` — return recent saved analyses
-- `DELETE /history/{analysis_id}` — delete a specific record
+- `POST /analyze` —  analyze Python source code
+- `GET /history` —  return recent saved analyses
+- `DELETE /history/{analysis_id}` —  delete a specific record
 
 ### Example Request
 ```bash
