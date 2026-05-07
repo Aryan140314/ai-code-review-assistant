@@ -17,8 +17,8 @@ AI Code Review Assistant is a full-stack code review project with a FastAPI back
 ```
 ai-code-review/
 ├── backend/
-│   ├── main.py
-│   ├── database/
+│   ├──  main.py
+│   ├──  database/
 │   │   ├── db.py
 │   │   └── models.py
 │   ├── routes/
